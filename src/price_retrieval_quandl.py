@@ -13,6 +13,7 @@ API_KEY = 'Jszm-d1BscjHYRVaMmUX'
 #API_KEY = 'v4WFg1TU4d4_qATreoLy'   # Jun's key
 # Authenticate Session
 quandl.ApiConfig.api_key = API_KEY
+QUANDL_API_KEY = API_KEY
 
 # Obtain a database connection to the MySQL instance
 db_host = 'localhost'
