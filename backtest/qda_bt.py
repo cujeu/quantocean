@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep 16 11:50:53 2014
-
-@author: colin4567
+Created on Dec/18 QDA backtest
+ref:https://github.com/jenniyanjie/successful-algorithmic-trading/blob/a34bafefebe1afb96836e6789dda34b4564b0e19/chapter15/snp_forecast.py
+@author: Jun Chen
 """
 
 import numpy as np
@@ -53,7 +53,8 @@ class MovingAverageCrossStrategy(Strategy):
     
     def calculate_signals(self, event):
         """
-        Generates a new SignalEvent object and places it on the events 
+        calculate_signals is the implementation of abstract method
+        Generates a new SignalEvent object and places it on the
         Event queue, and updates the bought attribute.
         
         Parameters:
@@ -78,13 +79,13 @@ class MovingAverageCrossStrategy(Strategy):
                         sig_dir = 'LONG'
                         signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
                         self.events.put(signal)
-                        self.bought[symbol] = 'LONG'
+                        self.bought[symbol] = 'LONG'    ## change state
                     
                     elif short_sma < long_sma and self.bought[symbol] == 'LONG':
                         sig_dir = 'EXIT'
                         signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
                         self.events.put(signal)
-                        self.bought[symbol] = 'OUT'
+                        self.bought[symbol] = 'OUT'  ## change state
 
 
 if __name__ == '__main__':
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     symbol_list = ['AAPL']
     #broken = ['nwsa', 'goog', 'alle', 'navi']
     #symbols =  pd.read_csv("C:/Users/colin4567/Dropbox/EventTradingEngine/getData/testData/sp500ticks.csv"); symbol_list = symbols['tickers'].tolist()
-    initial_capital = 10000000.0 #10m
+    initial_capital = 1000000.0 #1m
     start_date = datetime.datetime(2013,6,3,0,0,0)
     heartbeat = 0.0
     data_feed = 2 # 1 is csv, 2 is MySQL
@@ -133,7 +134,7 @@ if __name__ == '__main__':
 
                   
     
-    backtest.simulate_trading()
+    backtest.simulate_trading() ## trigger the backtest
                     
                     
                     
