@@ -38,7 +38,7 @@ class Portfolio(object):
         """
         self.bars = bars
         self.events = events
-        self.symbol_list = self.bars.symbol_list
+        self.symbol_list = self.bars.conf.symbol_list
         self.start_date = start_date
         self.initial_capital = initial_capital
         

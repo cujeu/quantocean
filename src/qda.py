@@ -81,7 +81,8 @@ if __name__ == "__main__":
             m[1].fit(X_train, y_train)
 
             # Make an array of predictions on the test set
-            pred = m[1].predict(X_test)
+            pred = m[1].predict(X_test)  #perd is 'numpy.ndarray'
+            print(type(y_train), type(pred))
             print("pred shape:", pred.shape, 'last 5:', pred[-5:-1])
 
             # Output the hit-rate and the confusion matrix for each model

@@ -57,6 +57,8 @@ class SimulatedExecutionHandler(ExecutionHandler):
         event - Event object with order information
         
         * Using ARCA as the exchange here as a place holder
+          Archipelago Exchange, is an exchange on which both 
+          stocks and options are traded
         """
         if event.type == 'ORDER':
             fill_event = FillEvent(datetime.datetime.utcnow(), event.symbol,

@@ -95,11 +95,11 @@ class HistoricCSVDataHandler(DataHandler):
     csv_dir - absolute directory to the csv files
     symbol_list - list of symbol strings
     """
-    def __init__(self, events, csv_dir, symbol_list, start_date):
+    def __init__(self, conf, events):
+        self.csv_dir = conf.csv_dir
+        self.symbol_list = conf.symbol_list
+        self.start_date = conf.start_date
         self.events = events
-        self.csv_dir = csv_dir
-        self.symbol_list = symbol_list
-        self.start_date = start_date
         
         self.symbol_data = {}
         self.latest_symbol_data = {}
@@ -112,7 +112,7 @@ class HistoricCSVDataHandler(DataHandler):
         Opens the CSV files and converts to pd.DataFrame within a symbol dict
         """
         comb_index = None
-        for s in self.symbol_list:
+        for s in self.conf.symbol_list:
             #this is a dict
             self.symbol_data[s] = pd.io.parsers.read_csv(
                                         os.path.join(self.csv_dir,
@@ -230,7 +230,7 @@ class HistoricCSVDataHandler(DataHandler):
         Pushes the latest bar to the latest_symbol_data structure
         for all symbols in the symbol list
         """
-        for s in self.symbol_list:
+        for s in self.conf.symbol_list:
             try:
                 bar = self._get_new_bar(s).__next__()
             except StopIteration:
@@ -251,21 +251,27 @@ import pandas.io.sql as psql
         
 class MySQLDataHandler(DataHandler):
     
-    def __init__(self, events, db_host, db_user, db_pass, db_name, symbol_list, start_date):
-        self.events = events        
-        self.db_host = db_host
-        self.db_user = db_user
-        self.db_pass = db_pass
-        self.db_name = db_name
-        self.con = mdb.connect(host=db_host, user=db_user, passwd=db_pass, db=db_name)
+    def __init__(self, conf, events):
+        self.events = events
+        self.conf = conf
+        ##self.db_host = conf.db_host
+        ##self.db_user = conf.db_user
+        ##self.db_pass = conf.db_pass
+        ##self.db_name = conf.db_name
+        ##self.symbol_list = conf.symbol_list
+        ##self.start_date = conf.start_date        
+        ##self.end_date = conf.end_date        
+        ##self.test_date = conf.test_date        
         
-        self.symbol_list = symbol_list
-        self.start_date = start_date        
+        self.symbol_data_generator = {}
         self.symbol_data = {}
         self.latest_symbol_data = {}
         self.continue_backtest = True
         
+        self.con = mdb.connect( host=self.conf.db_host, user=self.conf.db_user,
+                                passwd=self.conf.db_pass, db=self.conf.db_name)
         self._update_symbol_data(self.con)
+        self.update_generator()
         #puts bars up to start_date into latest_symbol_data
         self._get_historical_bars()
     
@@ -273,19 +279,29 @@ class MySQLDataHandler(DataHandler):
     def _update_symbol_data(self, con):
         comb_index = None
         
-        for s in self.symbol_list:
+        # read all data in symbol_list and combine in one dataFrame
+        for s in self.conf.symbol_list:
             sql_bars = """SELECT dp.price_date, dp.open_price, dp.high_price, dp.low_price, dp.close_price, dp.adj_close_price
                             FROM securities_master.symbol as sym
                             INNER JOIN securities_master.daily_price AS dp
                             ON dp.symbol_id = sym.id
                             WHERE sym.ticker = "%s"
                             and dp.price_date >= "%i-01-01"
-                            ORDER BY dp.price_date ASC;""" %(s, (self.start_date.year-1)) #added this in to only get a year of databefore start_date
+                            ORDER BY dp.price_date ASC;""" %(s, (self.conf.start_date.year-1)) #added this in to only get a year of databefore start_date
             #this is a dict where market name is key and value is df of prices
+            #read_sql retrun dataframe
             self.symbol_data[s] = psql.read_sql(sql_bars, con=con, index_col='price_date', parse_dates=['price_date'])
             self.symbol_data[s].rename(columns={'open_price':'open', 'high_price':'high', 'low_price':'low', 
                                         'close_price':'close', 'adj_close_price': 'adj_close'}, inplace=True)
-            
+            """
+            now symbol_data[s] looks like
+                        open    high     low   close  adj_close
+            price_date                                           
+            2017-11-27  175.05  175.08  173.34  174.09     174.09
+            2017-11-28  174.30  174.87  171.86  173.07     173.07
+            2017-11-29  172.63  172.92  167.16  169.48     169.48
+            2017-11-30  170.43  172.14  168.44  171.85     171.85
+            """
                                         
             #combine the index to pad forward values
             if comb_index is None:
@@ -296,20 +312,28 @@ class MySQLDataHandler(DataHandler):
             #reset this to None
             self.latest_symbol_data[s] = []
         
-        #reindex the df's
-        for s in self.symbol_list:
+    def update_generator(self):
+        comb_index = None
+        #reindex the df's, transfer df to a generator
+        for s in self.conf.symbol_list:
+            #combine the index to pad forward values
+            if comb_index is None:
+                comb_index = self.symbol_data[s].index
+            else:
+                comb_index.union(self.symbol_data[s].index)
+            
             #this creates the generator and creates union of all indexes
-            self.symbol_data[s] = self.symbol_data[s].reindex(index=comb_index,
+            #pad method:propagate last valid observation forward to next valid
+            self.symbol_data_generator[s] = self.symbol_data[s].reindex(index=comb_index,
                                                     method='pad').iterrows()
-    
-    
-        
+
+
     def _get_new_bar(self, symbol):
         """
         Returns the latest bar from the data feed. Subsequent calls will yeild
         a new bar until the end of the symbol data
         """
-        for b in self.symbol_data[symbol]:
+        for b in self.symbol_data_generator[symbol]:
             yield b
 
 
@@ -386,15 +410,26 @@ class MySQLDataHandler(DataHandler):
         Pushes the latest bar to the latest_symbol_data structure
         for all symbols in the symbol list
         """
-        for s in self.symbol_list:
+        for s in self.conf.symbol_list:
             try:
                 bar = self._get_new_bar(s).__next__()
             except StopIteration:
                 self.continue_backtest = False
             else:
                 if bar is not None:
-                    self.latest_symbol_data[s].append(bar)
-        self.events.put(MarketEvent())
+                    self.latest_symbol_data[s].append(bar) 
+                    """
+                    self.latest_symbol_data[s] is list of tuple, bar is a tuple too
+                    self.latest_symbol_data[s][0] can be
+                    (Timestamp('2009-01-02 00:00:00'), 
+                    open         11.0368
+                    high         11.6999
+                    low          10.9442
+                    close        11.6626
+                    adj_close    11.6626
+                    Name: 2009-01-02 00:00:00, dtype: float64)
+                    """
+        self.events.put(MarketEvent())  #creat event, put is methof of queue
         
         
         
@@ -406,12 +441,11 @@ class MySQLDataHandler(DataHandler):
         """
         current_symbol_list = []
              
-        for s in self.symbol_list:
+        for s in self.conf.symbol_list:
             long_window_bars = self.get_latest_bars_values(s, 'close', N=min_bars)
             if len(long_window_bars[~np.isnan(long_window_bars)]) >= min_bars:
                 current_symbol_list.append(s) 
         self.latest_symbol_list = current_symbol_list
-        
         
     
     def get_latest_ror_value(self, symbol):
@@ -431,7 +465,7 @@ class MySQLDataHandler(DataHandler):
         """
         Loads bars from before the start date - issue here is that bar for start_date has already been yielded - need to fix
         """
-        for s in self.symbol_list:
+        for s in self.conf.symbol_list:
             continue_historical = True
             while  continue_historical:
                 try:
@@ -441,7 +475,7 @@ class MySQLDataHandler(DataHandler):
                 else :
                     ##bar[0]is 'pandas._libs.tslibs.timestamps.Timestamp'
                     ##if bar is not None and bar[0].to_datetime() < self.start_date:
-                    if bar is not None and bar[0].to_pydatetime() < self.start_date:
+                    if bar is not None and bar[0].to_pydatetime() < self.conf.start_date:
                         self.latest_symbol_data[s].append(bar)
                     else:
                         continue_historical = False
@@ -463,20 +497,4 @@ class WABDataHandler(DataHandler):
         self.latest_symbol_data = {}
         self.continue_backtest = True
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-
         

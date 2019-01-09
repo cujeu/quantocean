@@ -9,15 +9,14 @@ import datetime
 import pprint
 import queue
 import time
+from config import Config
 
 class Backtest(object):
     """
     Encapsulates the settings and components for carrying out an event-driven
     backtest.
     """
-    def __init__(self, symbol_list, data_feed, initial_capital,
-                 heartbeat, start_date, data_handler, execution_handler, 
-                 portfolio, strategy, db_host=None, db_user=None, db_pass=None, db_name=None, csv_dir=None):
+    def __init__(self,conf, data_handler, execution_handler, portfolio, strategy):
         """
         Initializes the backtest.
         
@@ -32,22 +31,24 @@ class Backtest(object):
         portfolio - (Class) Keeps track of current and prior positions
         strategy - (Class) generates signals based on market data
         """
-        self.symbol_list = symbol_list
-        self.data_feed = data_feed
-        self.initial_capital = initial_capital
-        self.heartbeat = heartbeat
-        self.start_date = start_date
+        self.conf = conf
+        ##self.symbol_list = conf.symbol_list
+        ##self.data_feed = conf.data_feed
+        ##self.initial_capital = conf.initial_capital
+        ##self.heartbeat = conf.heartbeat
+        ##self.start_date = conf.start_date
+        ##self.end_date = conf.end_date
+        ##self.test_date = conf.test_date
+        ##self.csv_dir = conf.csv_dir
+        ##self.db_host = conf.db_host
+        ##self.db_user = conf.db_user
+        ##self.db_pass = conf.db_pass
+        ##self.db_name = conf.db_name
+
         self.data_handler_cls = data_handler
         self.execution_handler_cls = execution_handler
         self.portfolio_cls = portfolio
         self.strategy_cls = strategy
-        
-        self.csv_dir = csv_dir
-        self.db_host = db_host
-        self.db_user = db_user
-        self.db_pass = db_pass
-        self.db_name = db_name
-        
         
         self.events = queue.Queue()
         self.signals = 0
@@ -55,7 +56,7 @@ class Backtest(object):
         self.fills = 0
         self.num_strats = 1
         
-        self._generate_trading_instances(data_feed)
+        self._generate_trading_instances(conf.data_feed)
     
 
     def _generate_trading_instances(self, data_feed):
@@ -64,15 +65,16 @@ class Backtest(object):
         """
         print ("Creating DataHandler, Strategy, Portfolio, and ExecutionHandler...")
         
-        if self.data_feed == 1: #HistoricCSVDataHandler
-            self.data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list, self.start_date)
-        elif self.data_feed == 2: #MySQLDataHandler
-            self.data_handler = self.data_handler_cls(self.events, self.db_host, self.db_user, self.db_pass, self.db_name, self.symbol_list, self.start_date) 
-                                                  
-        self.strategy = self.strategy_cls(self.data_handler, self.events)
+        if self.conf.data_feed == 1: #HistoricCSVDataHandler
+            self.data_handler = self.data_handler_cls(self.conf, self.events)
+        elif self.conf.data_feed == 2: #MySQLDataHandler
+            self.data_handler = self.data_handler_cls(self.conf, self.events)
+         
+        # create strtegy class 
+        self.strategy = self.strategy_cls(self.conf,self.data_handler, self.events)
         
         self.portfolio = self.portfolio_cls(self.data_handler, self.events, 
-                                            self.start_date, self.initial_capital)
+                                            self.conf.start_date, self.conf.initial_capital)
                                             
         self.execution_handler = self.execution_handler_cls(self.events)
         
@@ -117,7 +119,7 @@ class Backtest(object):
                             self.fills += 1
                             self.portfolio.update_fill(event)
                             
-            time.sleep(self.heartbeat)
+            time.sleep(self.conf.heartbeat)
     
     
     def _output_performance(self):
@@ -158,68 +160,5 @@ class Backtest(object):
         """
         self._run_backtest()
         self._output_performance()
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-                        
-                        
-                    
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-        
-        
-        
-        
-        
-        
-        
-        
         
         

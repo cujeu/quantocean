@@ -104,7 +104,7 @@ class FillEvent(Event):
     
     def calculate_commission(self):
         """This is the rate for Schwab online execution"""
-        execution_fee = 8.95
+        execution_fee = 4.95
         return execution_fee
         
         

@@ -5,41 +5,72 @@ ref:https://github.com/jenniyanjie/successful-algorithmic-trading/blob/a34bafefe
 @author: Jun Chen
 """
 
-import numpy as np
-import pandas as pd
-import datetime
+from __future__ import print_function
 
+import datetime
+import pandas as pd
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as QDA
+
+#import from same directory
+from config import Config
 from backtest import Backtest
-from data import HistoricCSVDataHandler
-from data import MySQLDataHandler
+from strategy import Strategy
 from event import SignalEvent
+from data import MySQLDataHandler
+from data import HistoricCSVDataHandler
 from execution import SimulatedExecutionHandler
 from portfolio import Portfolio
-from strategy import Strategy
+#from create_lagged_series import create_lagged_series
 
+import sys
+sys.path.append('/home/jun/proj/quantocean/src')
+from make_data import *
 
-class MovingAverageCrossStrategy(Strategy):
+# Add the folder path to the sys.path list
+
+class SPYDailyForecastStrategy(Strategy):
     """
     Default window is 34/144
     """
-    def __init__(self, bars, events, short_window=34, long_window=144):
+    def __init__(self, conf, bars, events, short_window=34, long_window=144):
         """
-        Initializes the buy and hold strategy
+        S&P500 forecast strategy. It uses a Quadratic Discriminant
+        Analyser to predict the returns for a subsequent time
+        period and then generated long/exit signals based on the
+        prediction.
         
+        Initializes the buy and hold strategy
         Parameters:
         bars - DataHandler object that provides bar info
         events - Event queue object
         short/long windows - moving average lookbacks
         """
-        self.bars = bars
-        self.symbol_list = self.bars.symbol_list
+        self.conf = conf
+        self.bars = bars    #bars type is 'data.MySQLDataHandler'
+        self.symbol_list = self.conf.symbol_list
         self.events = events
+        self.datetime_now = datetime.datetime.utcnow()
         self.short_window = short_window
         self.long_window = long_window
         
+
+        ##self.model_start_date = datetime.datetime(2010,1,10)
+        ##self.model_end_date = datetime.datetime(2015,12,31)
+        ##self.model_start_test_date = datetime.datetime(2015,1,1)
+        self.model_start_date = self.conf.start_date
+        self.model_train_date = self.conf.train_date
+        self.model_end_date = self.conf.end_date
+        self.model_test_date = self.conf.test_date
+
+        self.long_market = False
+        self.short_market = False
+        self.bar_index = 0
+
+        self.pred = []
+        self.model = self.create_symbol_forecast_model()
         #set to true if a symbol if in the market
         self.bought = self._calculate_initial_bought()
-    
+
     
     def _calculate_initial_bought(self):
         """
@@ -50,7 +81,60 @@ class MovingAverageCrossStrategy(Strategy):
             bought[s] = 'OUT'
         return bought
     
-    
+    def create_symbol_forecast_model(self):
+        #start_test = self.model_start_test_date
+        # Create a lagged series of the S&P500 US stock market index
+        # snpret = create_lagged_series(
+        #    self.symbol_list[0], self.model_start_date, 
+        #    self.model_end_date, lags=5 )
+
+        # Use the prior two days of returns as predictor 
+        # values, with direction as the response
+        #X = snpret[["Lag1","Lag2"]]
+        #y = snpret["Direction"]
+
+        # Create training and test sets
+        #X_train = X[X.index < start_test]
+        #X_test = X[X.index >= start_test]
+        #y_train = y[y.index < start_test]
+        #y_test = y[y.index >= start_test]
+       
+        snpret = make_dataset1( self.symbol_list[0], 'adj_close_price',
+                                self.model_start_date, self.model_end_date)
+        X_train, X_test, y_train, y_test = make_train_3way(snpret, 'adj_close_price',
+                            5, 5.5, self.model_train_date, self.model_test_date)
+        """ 
+        y_train(1240,) y_test(252,) are  'pandas.core.series.Series' , y_test is the true result
+        price_date
+        2010-01-29    0.0
+        ...
+        2014-12-30    0.0
+        2014-12-31    0.0
+        X_train(1240, 13) and X_test(252, 13) is 'pandas.core.frame.DataFrame'
+                    open_price  high_price  low_price      ...       williams_r15    RSI_15     pvt_ema15
+        price_date                                         ...                                           
+        2015-01-02    105.8210    105.8685   101.9829      ...           0.642600  0.261353  4.355163e+07
+        2015-01-05    102.8760    103.2180   100.1399      ...           1.001175  0.216901  4.336671e+07
+        ...
+        2015-12-30    104.9044    105.0204   103.5518      ...           0.865691  0.371887  3.559120e+07
+        2015-12-31    103.3876    103.4069   101.2717      ...           1.025577  0.282320  3.539544e+07
+        """
+        
+        model = QDA()
+        model.fit(X_train, y_train)
+        cat_ser = pd.concat([y_train, y_test])
+        self.pred = model.predict(X_test)
+        #pred(252,) is 'numpy.ndarray' , [0. -1. -1.  0.  0 ..... 0.  0.  0.  0.  0.]
+        #merge pred to self.symbol_data[s] or another dataFrame with datatime
+        p_index = self.pred.shape[0]
+        idx = -1
+        for x in range(p_index):
+            cat_ser.iloc[idx] = self.pred[p_index+idx]
+            idx -= 1
+
+        self.strategy_df = cat_ser.to_frame()
+        return model
+
     def calculate_signals(self, event):
         """
         calculate_signals is the implementation of abstract method
@@ -68,24 +152,41 @@ class MovingAverageCrossStrategy(Strategy):
                 bars = self.bars.get_latest_bars_values(symbol, "adj_close", N=self.long_window)
                 
                 if bars is not None and bars != []:
-                    short_sma = np.mean(bars[-self.short_window:])
-                    long_sma = np.mean(bars[-self.long_window:])
                     dt = self.bars.get_latest_bar_datetime(symbol)
                     sig_dir = ""
-                    strength = 1.0 / len(self.bars.latest_symbol_list) #this is where you set percentage of capital - how can I easily rescale previous positions when new symbol becomes eligable
-                    strategy_id = 1
-                    
-                    if short_sma > long_sma and self.bought[symbol] == 'OUT':
-                        sig_dir = 'LONG'
-                        signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
-                        self.events.put(signal)
-                        self.bought[symbol] = 'LONG'    ## change state
-                    
-                    elif short_sma < long_sma and self.bought[symbol] == 'LONG':
-                        sig_dir = 'EXIT'
-                        signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
-                        self.events.put(signal)
-                        self.bought[symbol] = 'OUT'  ## change state
+                    #this is where you set percentage of capital - 
+                    #how can I easily rescale previous positions when new symbol becomes eligable
+                    strength = 1.0 / len(self.bars.latest_symbol_list)
+                    strategy_id = 2
+                    self.bar_index += 1
+                    pred = 0
+                    if dt > self.model_test_date:
+                        #old code
+                        #lags = self.bars.get_latest_bars_values(
+                        #        self.symbol_list[0], "returns", N=3
+                        #)
+                        #pred_series = pd.Series(
+                        #    {
+                        #        'Lag1': lags[1]*100.0, 
+                        #        'Lag2': lags[2]*100.0
+                        #    }
+                        #)
+                        #pred = self.model.predict(pred_series)
+                        the_pred = self.strategy_df.loc[dt.date()][0]
+                        if the_pred > 0 and not self.long_market:
+                            sig_dir = 'LONG'
+                            self.long_market = True
+                            signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
+                            self.events.put(signal)
+                            self.bought[symbol] = 'LONG'    ## change state
+
+                        elif the_pred < 0 and self.long_market:
+                            sig_dir = 'EXIT'
+                            self.long_market = False
+                            signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
+                            self.events.put(signal)
+                            self.bought[symbol] = 'OUT'  ## change state
+
 
 
 if __name__ == '__main__':
@@ -93,51 +194,38 @@ if __name__ == '__main__':
     import os
     
     ##symbol_list = ['ba', 'noc', 'lmt', 'nwsa', 'goog', 'alle', 'navi'] 
-    symbol_list = ['AAPL']
+    ##symbol_list = ['AAPL']
     #broken = ['nwsa', 'goog', 'alle', 'navi']
     #symbols =  pd.read_csv("C:/Users/colin4567/Dropbox/EventTradingEngine/getData/testData/sp500ticks.csv"); symbol_list = symbols['tickers'].tolist()
-    initial_capital = 1000000.0 #1m
-    start_date = datetime.datetime(2013,6,3,0,0,0)
-    heartbeat = 0.0
-    data_feed = 2 # 1 is csv, 2 is MySQL
+    ##initial_capital = 1000000.0 #1m
+    ##start_date = datetime.datetime(2010,1,1,0,0,0)
+    ##end_date = datetime.datetime(2015,12,31,0,0,0)    ##start <5 years> end
+    ##test_date = datetime.datetime(2015,1,1,0,0,0)   ##test_last year
+    ##heartbeat = 0.0
+    ##data_feed = 2 # 1 is csv, 2 is MySQL
+    conf = Config()
     
-    if data_feed == 1:
-        if os.path.isdir("/home/jun/proj/quantocean/eventDriven/testData"):
-            csv_dir = os.path.normpath("/home/jun/proj/quantocean/eventDriven/testData")
+    if conf.data_feed == 1:
+        if os.path.isdir("/home/jun/proj/quantocean/backtest/csv"):
+            csv_dir = os.path.normpath("/home/jun/proj/quantocean/backtest/csv")
         else:
             raise SystemExit("No csv dir found ")
             
-        backtest = Backtest(symbol_list, 
-                            data_feed,
-                            initial_capital, 
-                            heartbeat, 
-                            start_date, 
+        backtest = Backtest(conf,
                             HistoricCSVDataHandler, 
                             SimulatedExecutionHandler, 
                             Portfolio, 
-                            MovingAverageCrossStrategy, 
-                            csv_dir=csv_dir)  
+                            SPYDailyForecastStrategy)
                         
-    elif data_feed == 2:
-        db_host = 'localhost'; db_user = 'sec_user'; db_pass = 'password'; db_name = 'securities_master';
+    elif conf.data_feed == 2:
         
-        backtest = Backtest(symbol_list, 
-                            data_feed,
-                            initial_capital, 
-                            heartbeat, 
-                            start_date, 
+        backtest = Backtest(conf,
                             MySQLDataHandler, 
                             SimulatedExecutionHandler, 
                             Portfolio, 
-                            MovingAverageCrossStrategy, 
-                            db_host=db_host, db_user=db_user, db_pass=db_pass, db_name=db_name)  
+                            SPYDailyForecastStrategy)
 
-                  
-    
     backtest.simulate_trading() ## trigger the backtest
                     
                     
-                    
-                    
-                    
-                    
+                 

@@ -47,13 +47,3 @@ def create_drawdowns(pnl):
     return drawdown.max(), duration.max()
                 
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
