@@ -21,6 +21,13 @@ class MarketEvent(Event):
     def __init__(self):
         self.type = 'MARKET'
         
+class FinishEvent(Event):
+    """
+    stop backtest
+    """
+    def __init__(self):
+        self.type = 'FIN'
+        
 
 class SignalEvent(Event):
     """
@@ -44,6 +51,31 @@ class SignalEvent(Event):
         self.symbol = symbol
         self.datetime = datetime
         self.signal_type = signal_type
+        self.strength = strength
+
+class TimerEvent(Event):
+    """
+    Handles the event of set a sell timer a Strategy object.
+    """
+    def __init__(self, strategy_id, symbol, datetime, signal_type, strength, window):
+        """
+        Initializes the SignalEvent.
+        
+        Parameters:
+        strategy_id - Unique identifier for strategy that generated the signal
+        symbol - ticker symbol
+        datetime - timestamp of when signal was generated
+        window  
+        signal_type - 'LONG' or 'SHORT' or 'EXIT'
+        strength - Adjustment factor "suggestion" used to scale
+                    quantity at the portfolio level. Used for mean reversion
+        """
+        self.type = 'TIMEOUT'
+        self.strategy_id = strategy_id
+        self.symbol = symbol
+        self.datetime = datetime
+        self.signal_type = signal_type
+        self.window = window
         self.strength = strength
 
 
@@ -106,32 +138,4 @@ class FillEvent(Event):
         """This is the rate for Schwab online execution"""
         execution_fee = 4.95
         return execution_fee
-        
-        
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     

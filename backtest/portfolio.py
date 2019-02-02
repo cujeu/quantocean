@@ -202,9 +202,9 @@ class Portfolio(object):
         direction = signal.signal_type
         strength = signal.strength
         #THIS IS WHERE POSITION SIZING IS DONE - printing all orders
-        print (symbol, self.bars.get_latest_bar_datetime(symbol))
         mkt_quantity = floor((self.current_holdings['total'] * strength) / self.bars.get_latest_bar_value(symbol, "close"))
         cur_quantity = self.current_positions[symbol]
+        print (symbol, self.bars.get_latest_bar_datetime(symbol),'generate_naive_order',direction,cur_quantity)
         order_type = 'MKT'
         
         #should be able to use direction in place of position_change and get rid of position_change from init
@@ -280,37 +280,4 @@ class Portfolio(object):
         self.equity_curve.to_csv('equity.csv')
         return stats
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-            
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+

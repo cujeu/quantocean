@@ -13,6 +13,7 @@ from config import Config
 from backtest import Backtest
 from data import HistoricCSVDataHandler
 from data import MySQLDataHandler
+from event import FinishEvent
 from event import SignalEvent
 from execution import SimulatedExecutionHandler
 from portfolio import Portfolio
@@ -23,7 +24,7 @@ class MovingAverageCrossStrategy(Strategy):
     """
     Default window is 34/144
     """
-    def __init__(self, conf,bars, events, short_window=34, long_window=144):
+    def __init__(self, conf,bars, events, timerEvents, short_window=34, long_window=144):
         """
         Initializes the buy and hold strategy
         
@@ -36,6 +37,7 @@ class MovingAverageCrossStrategy(Strategy):
         self.bars = bars
         self.symbol_list = self.conf.symbol_list
         self.events = events
+        self.timerEvents = timerEvents
         self.short_window = short_window
         self.long_window = long_window
         
@@ -74,12 +76,15 @@ class MovingAverageCrossStrategy(Strategy):
                     ......
                  25.4753 25.7491 25.9727 26.8646 27.1948 26.8723 27.1987 27.082  27.5508]
                 """ 
-                if bars is not None and bars != []:
+                # dt start from 2010-01-05 , which is conf.start_date
+                dt = self.bars.get_latest_bar_datetime(symbol)
+                if (dt >= self.conf.end_date):
+                    self.events.put(FinishEvent())
+                
+                elif bars is not None and bars != []:
                     #bars end at 'current date', now calculate the SMA
                     short_sma = np.mean(bars[-self.short_window:])
                     long_sma = np.mean(bars[-self.long_window:])
-                    dt = self.bars.get_latest_bar_datetime(symbol)
-                    # dt start from 2010-01-05 , which is conf.start_date
                     sig_dir = ""
                     strength = 1.0 / len(self.bars.latest_symbol_list) #this is where you set percentage of capital - how can I easily rescale previous positions when new symbol becomes eligable
                     strategy_id = 1

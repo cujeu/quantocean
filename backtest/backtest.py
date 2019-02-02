@@ -10,6 +10,8 @@ import pprint
 import queue
 import time
 from config import Config
+from event import SignalEvent
+from event import TimerEvent
 
 class Backtest(object):
     """
@@ -51,6 +53,7 @@ class Backtest(object):
         self.strategy_cls = strategy
         
         self.events = queue.Queue()
+        self.timerEvents = queue.Queue()
         self.signals = 0
         self.orders = 0
         self.fills = 0
@@ -71,7 +74,7 @@ class Backtest(object):
             self.data_handler = self.data_handler_cls(self.conf, self.events)
          
         # create strtegy class 
-        self.strategy = self.strategy_cls(self.conf,self.data_handler, self.events)
+        self.strategy = self.strategy_cls(self.conf,self.data_handler, self.events, self.timerEvents)
         
         self.portfolio = self.portfolio_cls(self.data_handler, self.events, 
                                             self.conf.start_date, self.conf.initial_capital)
@@ -86,7 +89,8 @@ class Backtest(object):
         by calling the appropriate method on the necessary object.
         """
         i = 0
-        while True:
+        running = True
+        while running:
             i += 1
             #Update the market bars
             if self.data_handler.continue_backtest == True:
@@ -95,11 +99,29 @@ class Backtest(object):
             else:
                 break
             
-            #handle the events
+            qs = self.timerEvents.qsize()
+            #handle the timer events, process untill empty queue
+            while (qs > 0):
+                try:
+                    timerEvent = self.timerEvents.get(False) #block=False
+                    qs -= 1
+                except queue.Empty:  ##self.timerEvents.Empty:
+                    break
+                else:
+                    if timerEvent is not None:
+                        if timerEvent.window >= 1:
+                            signal = TimerEvent(timerEvent.strategy_id, timerEvent.symbol, timerEvent.datetime, timerEvent.signal_type, timerEvent.strength, timerEvent.window-1)
+                            self.timerEvents.put(signal)
+                        else:
+                            signal = SignalEvent(timerEvent.strategy_id, timerEvent.symbol, timerEvent.datetime, timerEvent.signal_type, timerEvent.strength)
+                            self.events.put(signal)
+            #end of timer event 
+
+            #handle the events, process untill empty queue
             while True:
                 try:
                     event = self.events.get(False) #block=False
-                except queue.Empty:
+                except queue.Empty: #self.events.Empty:
                     break
                 else:
                     if event is not None:
@@ -118,6 +140,12 @@ class Backtest(object):
                         elif event.type == 'FILL':
                             self.fills += 1
                             self.portfolio.update_fill(event)
+
+                        elif event.type == 'FIN':
+                            print('End backtest')
+                            running = False
+                            break
+            #end of event 
                             
             time.sleep(self.conf.heartbeat)
     

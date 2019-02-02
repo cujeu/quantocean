@@ -16,6 +16,8 @@ from config import Config
 from backtest import Backtest
 from strategy import Strategy
 from event import SignalEvent
+from event import TimerEvent
+from event import FinishEvent
 from data import MySQLDataHandler
 from data import HistoricCSVDataHandler
 from execution import SimulatedExecutionHandler
@@ -28,11 +30,11 @@ from make_data import *
 
 # Add the folder path to the sys.path list
 
-class SPYDailyForecastStrategy(Strategy):
+class QDAForecastStrategy(Strategy):
     """
     Default window is 34/144
     """
-    def __init__(self, conf, bars, events, short_window=34, long_window=144):
+    def __init__(self, conf, bars, events, timerEvents, short_window=5, long_window=14):
         """
         S&P500 forecast strategy. It uses a Quadratic Discriminant
         Analyser to predict the returns for a subsequent time
@@ -49,6 +51,7 @@ class SPYDailyForecastStrategy(Strategy):
         self.bars = bars    #bars type is 'data.MySQLDataHandler'
         self.symbol_list = self.conf.symbol_list
         self.events = events
+        self.timerEvents = timerEvents
         self.datetime_now = datetime.datetime.utcnow()
         self.short_window = short_window
         self.long_window = long_window
@@ -159,34 +162,32 @@ class SPYDailyForecastStrategy(Strategy):
                     strength = 1.0 / len(self.bars.latest_symbol_list)
                     strategy_id = 2
                     self.bar_index += 1
-                    pred = 0
-                    if dt > self.model_test_date:
-                        #old code
-                        #lags = self.bars.get_latest_bars_values(
-                        #        self.symbol_list[0], "returns", N=3
-                        #)
-                        #pred_series = pd.Series(
-                        #    {
-                        #        'Lag1': lags[1]*100.0, 
-                        #        'Lag2': lags[2]*100.0
-                        #    }
-                        #)
-                        #pred = self.model.predict(pred_series)
-                        the_pred = self.strategy_df.loc[dt.date()][0]
-                        if the_pred > 0 and not self.long_market:
+                    #dt.type is Timestamp, datetime
+                    if (dt >= self.model_end_date):
+                        print('hit and gen the end')
+                        self.events.put(FinishEvent())
+                    elif (dt > self.model_test_date):
+                        pred_dir = self.strategy_df.loc[dt.date()][0]
+                        if pred_dir > 0: ## and not self.long_market:
                             sig_dir = 'LONG'
                             self.long_market = True
                             signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
                             self.events.put(signal)
                             self.bought[symbol] = 'LONG'    ## change state
-
-                        elif the_pred < 0 and self.long_market:
+                            # QDA strategy is buy and sell in 5 days, so 
+                            # put another timer event
                             sig_dir = 'EXIT'
+                            signal = TimerEvent(strategy_id, symbol, dt, sig_dir, strength, 5)
+                            self.timerEvents.put(signal)
+                        """
+                        ## do not short for a while
+                        elif pred_dir < 0 and self.long_market:
+                            sig_dir = 'SHORT'
                             self.long_market = False
                             signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
                             self.events.put(signal)
                             self.bought[symbol] = 'OUT'  ## change state
-
+                        """
 
 
 if __name__ == '__main__':
@@ -215,7 +216,7 @@ if __name__ == '__main__':
                             HistoricCSVDataHandler, 
                             SimulatedExecutionHandler, 
                             Portfolio, 
-                            SPYDailyForecastStrategy)
+                            QDAForecastStrategy)
                         
     elif conf.data_feed == 2:
         
@@ -223,7 +224,7 @@ if __name__ == '__main__':
                             MySQLDataHandler, 
                             SimulatedExecutionHandler, 
                             Portfolio, 
-                            SPYDailyForecastStrategy)
+                            QDAForecastStrategy)
 
     backtest.simulate_trading() ## trigger the backtest
                     
