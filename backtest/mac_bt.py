@@ -35,7 +35,7 @@ class MovingAverageCrossStrategy(Strategy):
         """
         self.conf = conf
         self.bars = bars
-        self.symbol_list = self.conf.symbol_list
+        #self.symbol_list = self.conf.symbol_list
         self.events = events
         self.timerEvents = timerEvents
         self.short_window = short_window
@@ -50,7 +50,7 @@ class MovingAverageCrossStrategy(Strategy):
         Adds keys to the bought dictionary for all symbols and sets them to 'OUT'
         """
         bought = {}        
-        for s in self.symbol_list:
+        for s in self.conf.symbol_list:
             bought[s] = 'OUT'
         return bought
     
@@ -123,29 +123,30 @@ if __name__ == '__main__':
 
     conf = Config()
     
-    if conf.data_feed == 1:
-        if os.path.isdir("/home/jun/proj/quantocean/eventDriven/testData"):
-            csv_dir = os.path.normpath("/home/jun/proj/quantocean/eventDriven/testData")
-        else:
-            raise SystemExit("No csv dir found ")
+    for asymbol in conf.whole_list:
+        conf.symbol_list = []
+        conf.symbol_list.append(asymbol)
+        if conf.data_feed == 1:
+            if os.path.isdir(conf.csv_dir):
+                csv_dir = os.path.normpath(conf.csv_dir)
+            else:
+                raise SystemExit("No csv dir found ")
             
-        backtest = Backtest(conf,
-                            HistoricCSVDataHandler, 
-                            SimulatedExecutionHandler, 
-                            Portfolio, 
-                            MovingAverageCrossStrategy)
+            backtest = Backtest(conf,
+                                HistoricCSVDataHandler, 
+                                SimulatedExecutionHandler, 
+                                Portfolio, 
+                                MovingAverageCrossStrategy)
+            backtest.simulate_trading() ## trigger the backtest
                         
-    elif conf.data_feed == 2:
-        
-        backtest = Backtest(conf,
-                            MySQLDataHandler, 
-                            SimulatedExecutionHandler, 
-                            Portfolio, 
-                            MovingAverageCrossStrategy)
-                  
-    
-    backtest.simulate_trading() ## trigger the backtest
-                    
+        elif conf.data_feed == 2:
+            backtest = Backtest(conf,
+                                MySQLDataHandler, 
+                                SimulatedExecutionHandler, 
+                                Portfolio, 
+                                MovingAverageCrossStrategy)
+            backtest.simulate_trading() ## trigger the backtest
+    #end of for whole_list            
                     
                     
                     

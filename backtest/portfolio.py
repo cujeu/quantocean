@@ -202,15 +202,16 @@ class Portfolio(object):
         direction = signal.signal_type
         strength = signal.strength
         #THIS IS WHERE POSITION SIZING IS DONE - printing all orders
-        mkt_quantity = floor((self.current_holdings['total'] * strength) / self.bars.get_latest_bar_value(symbol, "close"))
+        cls = self.bars.get_latest_bar_value(symbol, "close")
+        mkt_quantity = floor((self.current_holdings['total'] * strength) / cls)
         cur_quantity = self.current_positions[symbol]
-        print (symbol, self.bars.get_latest_bar_datetime(symbol),'generate_naive_order',direction,cur_quantity)
         order_type = 'MKT'
         
         #should be able to use direction in place of position_change and get rid of position_change from init
         if direction == "LONG" and cur_quantity == 0:
             position_change = 'LONG_ENTRY'
             order = OrderEvent(symbol, order_type, mkt_quantity, 'BUY', position_change)
+            print (symbol, self.bars.get_latest_bar_datetime(symbol),'generate_naive_order',direction,mkt_quantity, cls)
         elif direction == "SHORT" and cur_quantity == 0:
             position_change = 'SHORT_ENTRY'
             order = OrderEvent(symbol, order_type, mkt_quantity, 'SELL', position_change)
@@ -218,6 +219,7 @@ class Portfolio(object):
         elif direction == 'EXIT' and cur_quantity > 0:
             position_change = direction
             order = OrderEvent(symbol, order_type, abs(cur_quantity), 'SELL', position_change)
+            print (symbol, self.bars.get_latest_bar_datetime(symbol),'generate_naive_order',direction,cur_quantity, cls)
         elif direction == 'EXIT' and cur_quantity < 0:
             position_change= direction
             order = OrderEvent(symbol, order_type, abs(cur_quantity), 'BUY', position_change)

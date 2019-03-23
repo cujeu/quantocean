@@ -9,6 +9,8 @@ import datetime
 import pprint
 import queue
 import time
+import logging
+import logging.config
 from config import Config
 from event import SignalEvent
 from event import TimerEvent
@@ -34,6 +36,8 @@ class Backtest(object):
         strategy - (Class) generates signals based on market data
         """
         self.conf = conf
+        self.logger = self.conf.logger
+        self.logger.info('backtest __init__')
         ##self.symbol_list = conf.symbol_list
         ##self.data_feed = conf.data_feed
         ##self.initial_capital = conf.initial_capital
@@ -186,6 +190,7 @@ class Backtest(object):
         This is called from __main__.
         Simulates the backtest and outputs portfolio performance
         """
+        #self.logger.info('backtest ------ %s',self.conf.symbol_list[0])
         self._run_backtest()
         self._output_performance()
         

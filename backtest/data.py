@@ -254,6 +254,8 @@ class MySQLDataHandler(DataHandler):
     def __init__(self, conf, events):
         self.events = events
         self.conf = conf
+        self.logger = self.conf.logger
+        self.logger.info('MySQLDataHandler __init__')
         ##self.db_host = conf.db_host
         ##self.db_user = conf.db_user
         ##self.db_pass = conf.db_pass
@@ -291,6 +293,8 @@ class MySQLDataHandler(DataHandler):
             #this is a dict where market name is key and value is df of prices
             #read_sql retrun dataframe
             self.symbol_data[s] = psql.read_sql(sql_bars, con=con, index_col='price_date', parse_dates=['price_date'])
+            self.logger.info('dataframe tail - {}'.format(self.symbol_data[s].tail()))
+            self.symbol_data[s].to_csv(self.conf.csv_dir+'/'+s+'.csv')
             self.symbol_data[s].rename(columns={'open_price':'open', 'high_price':'high', 'low_price':'low', 
                                         'close_price':'close', 'adj_close_price': 'adj_close'}, inplace=True)
             """

@@ -48,6 +48,8 @@ class QDAForecastStrategy(Strategy):
         short/long windows - moving average lookbacks
         """
         self.conf = conf
+        self.logger = self.conf.logger
+        self.logger.info('QDAForecastStrategy __init__')
         self.bars = bars    #bars type is 'data.MySQLDataHandler'
         self.symbol_list = self.conf.symbol_list
         self.events = events
@@ -159,7 +161,7 @@ class QDAForecastStrategy(Strategy):
                     sig_dir = ""
                     #this is where you set percentage of capital - 
                     #how can I easily rescale previous positions when new symbol becomes eligable
-                    strength = 1.0 / len(self.bars.latest_symbol_list)
+                    strength = 0.25 / len(self.bars.latest_symbol_list)
                     strategy_id = 2
                     self.bar_index += 1
                     #dt.type is Timestamp, datetime
@@ -205,28 +207,32 @@ if __name__ == '__main__':
     ##heartbeat = 0.0
     ##data_feed = 2 # 1 is csv, 2 is MySQL
     conf = Config()
-    
-    if conf.data_feed == 1:
-        if os.path.isdir("/home/jun/proj/quantocean/backtest/csv"):
-            csv_dir = os.path.normpath("/home/jun/proj/quantocean/backtest/csv")
-        else:
-            raise SystemExit("No csv dir found ")
-            
-        backtest = Backtest(conf,
-                            HistoricCSVDataHandler, 
-                            SimulatedExecutionHandler, 
-                            Portfolio, 
-                            QDAForecastStrategy)
-                        
-    elif conf.data_feed == 2:
-        
-        backtest = Backtest(conf,
-                            MySQLDataHandler, 
-                            SimulatedExecutionHandler, 
-                            Portfolio, 
-                            QDAForecastStrategy)
 
-    backtest.simulate_trading() ## trigger the backtest
+    for asymbol in conf.whole_list:
+        conf.symbol_list = []
+        conf.symbol_list.append(asymbol)
+        if conf.data_feed == 1:
+            if os.path.isdir(conf.csv_dir):
+                csv_dir = os.path.normpath(conf.csv_dir)
+            else:
+                raise SystemExit("No csv dir found ")
+            
+            backtest = Backtest(conf,
+                                HistoricCSVDataHandler, 
+                                SimulatedExecutionHandler, 
+                                Portfolio, 
+                                QDAForecastStrategy)
+            backtest.simulate_trading() ## trigger the backtest
+                        
+        elif conf.data_feed == 2:
+        
+            backtest = Backtest(conf,
+                                MySQLDataHandler, 
+                                SimulatedExecutionHandler, 
+                                Portfolio, 
+                                QDAForecastStrategy)
+            backtest.simulate_trading() ## trigger the backtest
+    #end of for whole_list            
                     
                     
                  
