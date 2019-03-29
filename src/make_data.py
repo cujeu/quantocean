@@ -96,14 +96,14 @@ def make_train_3way(df_a, column_name, prd, pct, p_train_date, p_test_date):
 
     i = 0
     while i < (len(tsret.index)-1):
-        if (tsret.loc[tsret.index[i], 'Today'] >= pct):
-            tsret.loc[tsret.index[i], 'Direction'] = 1.0
-        elif (tsret.loc[tsret.index[i], 'Today'] <= -pct):
-            tsret.loc[tsret.index[i], 'Direction'] = -1.0
-        else:
-            tsret.loc[tsret.index[i], 'Direction'] = 0
+        tsret.loc[tsret.index[i], 'Direction'] = 0
+        if i >= prd:
+            if (tsret.loc[tsret.index[i], 'Today'] >= pct):
+                tsret.loc[tsret.index[i-prd], 'Direction'] = 1.0
+            elif (tsret.loc[tsret.index[i], 'Today'] <= -pct):
+                tsret.loc[tsret.index[i-prd], 'Direction'] = -1.0
         i = i + 1
-    ##tsret.to_csv("tsret2.csv",float_format='%.3f')
+    #tsret.to_csv("tsret2.csv",float_format='%.3f')
 
 
     y = tsret["Direction"]
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     ## build the x_train and x_test
     ## X_train, X_test, y_train, y_test = make_train_dir(df_a, column_name, 5, train_date, test_date)
     ## X_train, X_test, y_train, y_test = make_train_pct(df_a, column_name, 5, 5.5, train_date, test_date)
-    X_train, X_test, y_train, y_test = make_train_3way(df_a, column_name, 5, 5.5, train_date, test_date)
+    ##X_train, X_test, y_train, y_test = make_train_3way(df_a, column_name, 5, 5.5, train_date, test_date)
     
     ##X_train.to_csv("xtrain.csv",float_format='%.3f')
     ##X_test.to_csv("xtest.csv",float_format='%.3f')

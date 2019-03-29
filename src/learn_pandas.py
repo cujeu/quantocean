@@ -2,13 +2,21 @@ import pandas as pd
 import numpy as np
 
 
-date1 = pd.date_range('1/1/2000', periods=8)
-print(date1)
+new_list = [1, 2, 3,4,5,6,7,8]
+ser_list = pd.Series(new_list)
+
+
+#df_pred[ticker] = pred
+#print(ser)
+#date_df = date1.join(ser)
+#df_pred[ticker] = se.values
+#print(date_df)
 
 
 dates = pd.date_range('1/1/2000', periods=8)
 df = pd.DataFrame(np.random.randn(8, 4), index=dates, columns=['A', 'B', 'C', 'D'])
-
+new_df = pd.DataFrame(new_list, df.index, columns=['new'])
+print(new_df)
 print (df)
 """
                    A         B         C         D

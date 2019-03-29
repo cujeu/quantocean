@@ -132,6 +132,7 @@ def tuneRF3(X,y):
     print(gsearch1.best_estimator_ , gsearch1.best_params_, gsearch1.best_score_)
     ### {'n_estimators': 90} 0.7993795243019648
 
+    """
     #3 这样我们得到了最佳的弱学习器迭代次数，接着我们对决策树最大深度max_depth
     print("test2")
     param_test2 = {'max_depth':range(3,14,2), 'min_samples_split':range(50,201,20)}
@@ -153,6 +154,7 @@ def tuneRF3(X,y):
     gsearch3.fit(X,y)
     print(gsearch3.cv_results_ ,gsearch3.best_estimator_, gsearch3.best_params_, gsearch3.best_score_)
     #{'min_samples_leaf': 50, 'min_samples_split': 80} 0.9286418256274269
+    """
 
 if __name__ == "__main__":
     column_name = 'adj_close_price'
@@ -174,13 +176,13 @@ if __name__ == "__main__":
     test_date = datetime.datetime(2015,1,1) #(2016,1,1)
     sym_df = retrieve_id_ticker()
 
-    df_a = make_dataset1(sym_df["ticker"][1], column_name,date1, date2)
+    df_a = make_dataset1(sym_df["ticker"][2], column_name,date1, date2)
     ## build the x_train and x_test and tuning parameters
     #X_train, X_test, y_train, y_test = make_train_dir(df_a, column_name, 5, train_date, test_date)
     #X_train, X_test, y_train, y_test = make_train_pct(df_a, column_name, 5, 5.5, train_date, test_date)
     # tuneRF1(X_train,y_train)
-    #X_train, X_test, y_train, y_test = make_train_3way(df_a, column_name, 5, 5.5, train_date, test_date)
-    #tuneRF3(X_train,y_train)
+    X_train, X_test, y_train, y_test = make_train_3way(df_a, column_name, 5, 5.5, train_date, test_date)
+    tuneRF3(X_train,y_train)
     
 
     ## model and parameters for 3way change , 1:up 0 no change -1: down
@@ -225,6 +227,7 @@ if __name__ == "__main__":
               ]
     """
 
+    """
     ##param_grid = {'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000] }
     ##GridSearchCV(cv=None,
     ##         estimator=LogisticRegression(C=1.0, intercept_scaling=1,   
@@ -279,5 +282,5 @@ if __name__ == "__main__":
             print("%s\n" % confusion_matrix(pred, y_test))  ##, labels=[1,-1]))
 
     #df_pred.to_csv('pred.csv')
-
+    """
 
