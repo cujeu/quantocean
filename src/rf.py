@@ -172,8 +172,8 @@ if __name__ == "__main__":
     ## train_date = datetime.datetime(2008, 4, 22) # one day ahead
     train_date = datetime.datetime(2010,1,29) #(2008, 4, 29)  # 5 day ahead
     test_date = datetime.datetime(2015,1,1) #(2016,1,1)
+    
     sym_df = retrieve_id_ticker()
-
     df_a = make_dataset1(sym_df["ticker"][1], column_name,date1, date2)
     ## build the x_train and x_test and tuning parameters
     #X_train, X_test, y_train, y_test = make_train_dir(df_a, column_name, 5, train_date, test_date)
@@ -185,11 +185,12 @@ if __name__ == "__main__":
 
     ## model and parameters for 3way change , 1:up 0 no change -1: down
     models = [
-              ("RF3", RandomForestClassifier(n_estimators=90,oob_score=True, random_state=10))
-              ##  ("RF3",RandomForestClassifier(n_estimators=90,max_depth=11, min_samples_split=80, 
-              ##          min_samples_leaf=50, 
-              ##          ##max_features='sqrt', bootstrap=True, oob_score=True, n_jobs=1, 
-              ##          oob_score=True,random_state=10) )
+                ##("RF3", RandomForestClassifier(n_estimators=90,oob_score=True, random_state=10))
+                ("RF3",RandomForestClassifier(n_estimators=90,max_depth=3, min_samples_split=80, 
+                     min_samples_leaf=20, 
+                     ##max_features='sqrt', bootstrap=True, oob_score=True, n_jobs=1, 
+                     oob_score=True)
+                )
              ]
     
     """

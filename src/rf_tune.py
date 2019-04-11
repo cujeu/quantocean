@@ -121,61 +121,67 @@ def tuneRF3(X,y):
     #                      'min_weight_fraction_leaf': 0.0, 'n_jobs': None, 
     #                      'max_leaf_nodes': None, 'min_samples_leaf': 1, 'class_weight': None}
 
+    """
     #2. grid search for estimator
+    """
     print("test1")
     param_test1 = {'n_estimators':range(10,180,20)}
-    gsearch1 = GridSearchCV(estimator = RandomForestClassifier(oob_score=True, random_state=10,
+    ##gsearch1 = GridSearchCV(estimator = RandomForestClassifier(oob_score=True, random_state=10,
+    gsearch1 = GridSearchCV(estimator = RandomForestClassifier(oob_score=True,
                                         criterion ='gini',min_samples_split=2,bootstrap = True,
                                         max_features='auto',min_samples_leaf=1 ),
-                            param_grid = param_test1, cv=3)
+                            param_grid = param_test1, cv=5)
     gsearch1.fit(X,y)
     print(gsearch1.best_estimator_ , gsearch1.best_params_, gsearch1.best_score_)
-    ### {'n_estimators': 90} 0.7993795243019648
+    ### {'n_estimators': 90} 0.7761116856256464
 
     """
     #3 这样我们得到了最佳的弱学习器迭代次数，接着我们对决策树最大深度max_depth
+    """
     print("test2")
     param_test2 = {'max_depth':range(3,14,2), 'min_samples_split':range(50,201,20)}
     gsearch2 = GridSearchCV(estimator = RandomForestClassifier(n_estimators= 90,
-                                        oob_score=True, random_state=10,
+                                        oob_score=True,
                                         criterion ='gini',bootstrap = True,
                                         max_features='auto',min_samples_leaf=1),
                             param_grid = param_test2,iid=False, cv=5)
     gsearch2.fit(X,y)
     print(gsearch2.cv_results_ ,gsearch2.best_estimator_, gsearch2.best_params_, gsearch2.best_score_)
-    ### {'max_depth': 11, 'min_samples_split': 50} 0.7869452867463433
+    ### {'min_samples_split': 110, 'max_depth': 3} 0.8053946493049826
 
+    """
     #4. 划分所需最小样本数min_samples_split和叶子节点最少样本数min_samples_lea
+    """
     print("test3")
     param_test3 = {'min_samples_split':range(80,150,20), 'min_samples_leaf':range(10,60,10)}
-    gsearch3 = GridSearchCV(estimator = RandomForestClassifier(n_estimators= 90,max_depth=11,
-                            oob_score=True, random_state=10),
+    gsearch3 = GridSearchCV(estimator = RandomForestClassifier(n_estimators= 90,max_depth=3,
+                            oob_score=True ),
                             param_grid = param_test3, iid=False, cv=5)
     gsearch3.fit(X,y)
     print(gsearch3.cv_results_ ,gsearch3.best_estimator_, gsearch3.best_params_, gsearch3.best_score_)
-    #{'min_samples_leaf': 50, 'min_samples_split': 80} 0.9286418256274269
-    """
+    # {'min_samples_split': 80, 'min_samples_leaf': 20} 0.956053372025561
+    # {'min_samples_split': 80, 'min_samples_leaf': 10} 0.975012560075076
 
 if __name__ == "__main__":
     column_name = 'adj_close_price'
     """
     10 year date set
+    """
     date1 = datetime.datetime(2008, 4, 1)
     date2 = datetime.datetime(2017, 5, 1)
     ## train_date = datetime.datetime(2008, 4, 22) # one day ahead
     train_date = datetime.datetime(2008, 4, 29)  # 5 day ahead
     test_date = datetime.datetime(2016,1,1)
     """
-    """
     5 year date set
-    """
     date1 = datetime.datetime(2010,1,1)  #(2008, 4, 1)
     date2 = datetime.datetime(2015,12,31) #(2017, 5, 1)
     ## train_date = datetime.datetime(2008, 4, 22) # one day ahead
     train_date = datetime.datetime(2010,1,29) #(2008, 4, 29)  # 5 day ahead
     test_date = datetime.datetime(2015,1,1) #(2016,1,1)
+    """
+    
     sym_df = retrieve_id_ticker()
-
     df_a = make_dataset1(sym_df["ticker"][2], column_name,date1, date2)
     ## build the x_train and x_test and tuning parameters
     #X_train, X_test, y_train, y_test = make_train_dir(df_a, column_name, 5, train_date, test_date)
@@ -206,26 +212,6 @@ if __name__ == "__main__":
              ]
     """
 
-    """
-    ## in SVC C[less fit  -> over fit] 
-    ##        gamma[#less support vector   -> more SV]
-    models = [("LR", LogisticRegression()),
-              ("LDA", LDA()), 
-              ("QDA", QDA()),
-              ("LSVC", LinearSVC()),
-              ("RSVM", SVC(
-              	C=1000000.0, cache_size=200, class_weight=None,
-                coef0=0.0, degree=3, gamma=0.0001, kernel='rbf',
-                max_iter=-1, probability=False, random_state=None,
-                shrinking=True, tol=0.001, verbose=False)),
-              ("RF", RandomForestClassifier(
-              	n_estimators=1000, criterion='gini', 
-                max_depth=None, min_samples_split=2, 
-                min_samples_leaf=1, max_features='auto', 
-                bootstrap=True, oob_score=False, n_jobs=1, 
-                random_state=None, verbose=0) )
-              ]
-    """
 
     """
     ##param_grid = {'C': [0.001, 0.01, 0.1, 1, 10, 100, 1000] }
