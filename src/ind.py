@@ -390,7 +390,7 @@ def kst_oscillator(df, r1, r2, r3, r4, n1, n2, n3, n4, column_name = None):
     return df
 
 
-def relative_strength_index(df, n, column_name = None):
+def relative_strength_index(df, n, column_name = None, high_name = None , low_name = None):
     """Calculate Relative Strength Index(RSI) for given data.
     
     :param df: pandas.DataFrame
@@ -399,13 +399,17 @@ def relative_strength_index(df, n, column_name = None):
     """
     if column_name is None:
         column_name = 'close_price'
+    if high_name is None:
+        high_name = 'high_price'
+    if low_name is None:
+        low_name = 'low_price'
 
     i = 0
     UpI = [0]
     DoI = [0]
     while i < (len(df.index)-1):
-        UpMove = df.loc[df.index[i+1], 'high_price'] - df.loc[df.index[i], 'high_price']
-        DoMove = df.loc[df.index[i], 'low_price'] - df.loc[df.index[i+1], 'low_price']
+        UpMove = df.loc[df.index[i+1], high_name] - df.loc[df.index[i], high_name]
+        DoMove = df.loc[df.index[i], low_name] - df.loc[df.index[i+1], low_name]
         if UpMove > DoMove and UpMove > 0:
             UpD = UpMove
         else:
